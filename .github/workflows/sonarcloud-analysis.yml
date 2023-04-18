@@ -16,39 +16,24 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-name: CodeQL
-
 on:
+  # Trigger analysis when pushing in master or pull requests, and when creating
+  # a pull request.
+  push:
+    branches:
+      - master
   pull_request:
-    branches: "*"
-
-permissions:
-  contents: read
-
+    types: [opened, synchronize, reopened]
+name: SonarCloud Analysis
 jobs:
-  analyse:
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-    name: Analyse
+  sonarcloud:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v2
         with:
-          fetch-depth: 2
-
-      - run: git checkout HEAD^2
-        if: ${{ github.event_name == 'pull_request' }}
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
-
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v2
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v2
+          fetch-depth: 0
+      - name: SonarCloud Scan
+        uses: sonarsource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: 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
+          SONAR_TOKEN: f9cd9e975dbec452bda50541a8036b8ba3f5983f
