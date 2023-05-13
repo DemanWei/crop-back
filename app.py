@@ -25,6 +25,7 @@ app.register_blueprint(bp_error)
 app.register_blueprint(bp_data)
 
 
+
 @app.route('/')
 def hello_world():
     return jsonify(status=1, message='Hello World!', data=None)
