@@ -1,6 +1,7 @@
 import math
 import warnings
 import datetime
+import requests
 import numpy as np
 import pandas as pd
 from pyecharts import options as opts
@@ -12,12 +13,11 @@ from statsmodels.stats.diagnostic import acorr_ljungbox
 from statsmodels.tsa.stattools import adfuller as ADF
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 
-from src.http.QThreadHttp import QThreadHttpPost
-from src.utils.ExceptionUtils import ArimaDataTestFailedException
-from src.utils.DataUtils import load_data_sql
-from src.utils.DateUtils import get_date_range, datetime2str
-from src.config.Config import *
-from src.utils.decorator import auto_handle_error
+from blueprint.data import get_price
+from utils.DateUtils import get_date_range, datetime2str
+from utils.ExceptionUtils import ArimaDataTestFailedException
+
+
 
 warnings.filterwarnings('ignore')
 
@@ -30,7 +30,11 @@ class Arima():
 
     def load_data(self):
         # 加载city_crop的价格数据和图像
-        return load_data_sql(self.params, self.settings['miss_type'])
+        data = get_price(self.params['city'], self.params['crop'])
+        date_list = [x['date'] for x in data]
+        price_list = [x['price'] for x in data]
+        data = pd.DataFrame(price_list, index=date_list)
+        return data
 
     def split_data(self, data):
         train_size = math.ceil(len(data) * self.settings['train_rate'])
@@ -72,7 +76,8 @@ class Arima():
             l2 = '检验[未通过]!!!\n' + '-' * 45 + '\n'
         info = l0 + l1 + l2
         self.log += info
-        self.console_log(CONSOLE_PRE_PATH + 'ARIMA.txt', self.log)
+        # TODO console log
+        # self.console_log(CONSOLE_PRE_PATH + 'ARIMA.txt', self.log)
         # 控制台打印
         if print_info:
             print(info)
@@ -100,8 +105,9 @@ class Arima():
     def fit(self, train, order):
         """训练"""
         fit = ARIMA(train, order=order).fit()
-        if self.settings['model_auto_save']:
-            fit.save(MODELS_PATH + 'ARIMA.pkl')
+        if self.settings.get('model_auto_save') is not None:
+            # TODO model save
+            fit.save('./static/model/ARIMA.pkl')
         return fit
 
     def ARIMA_Predict(self, fit, data_test):
@@ -156,7 +162,8 @@ class Arima():
             )
                 .set_colors(['blue', 'red', 'orange', 'green'])
         )
-        line.render(IMG_PRE_PATH + 'ARIMA.html')
+        # TODO save image
+        line.render('./static/echarts/ARIMA.html')
 
     def console_log(self, console_path, info):
         with open(console_path, 'w', encoding='utf-8') as fp:
@@ -188,7 +195,8 @@ def ARIMA_main(params, conf, settings, model_path):
             fit = arima.fit(train, (p, d, q))
         # 保存fit
         if settings.get('model_auto_save'):
-            fit.save(MODELS_PATH + 'ARIMA.pkl')
+            # TODO model save
+            fit.save('./static/model/ARIMA.pkl')
         # 原数据预测
         train_predict, test_predict = arima.ARIMA_Predict(fit, test)
         # 预测未来
@@ -200,13 +208,28 @@ def ARIMA_main(params, conf, settings, model_path):
         arima.plot_res(day_data, train_predict, test_predict, future, train_RMSE, test_RMSE)
 
         # 返回
-        datas = {'original': day_data, 'train_predict': train_predict, 'test_predict': test_predict, 'future': future}
-        return datas, round(train_RMSE, 2), round(test_RMSE, 2), fit
+        datas = {'original': dict_to_str(day_data.to_dict()),
+                 'train_predict': dict_to_str(train_predict.to_dict()),
+                 'test_predict': dict_to_str(test_predict.to_dict()),
+                 'future': dict_to_str(future.to_dict())}
+        # return datas, round(train_RMSE, 2), round(test_RMSE, 2), fit
+        return datas, round(train_RMSE, 2), round(test_RMSE, 2)
     else:
         raise ArimaDataTestFailedException(
             'The stationarity or white noise test failed, please differentiate again or change the sampling frequency!'
         )
 
+def dict_to_str(data_dict):
+    ret = {}
+    for k, v in data_dict.items():
+        if isinstance(v, dict):
+            v = dict_to_str(v)
+        elif isinstance(v, pd.DataFrame):
+            v = v.to_dict()
+        elif isinstance(v, pd.Timestamp):
+            v = v.strftime('%Y-%m-%d')
+        ret[str(k)] = v
+    return ret
 # # save model
 # model_fit.save('model.pkl')
 # # load model

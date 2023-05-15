@@ -13,6 +13,7 @@ from blueprint.history import bp_history
 from blueprint.error import bp_error
 from blueprint.system import bp_system
 from blueprint.data import bp_data
+from blueprint.predict import bp_predict
 
 # json序列化model
 app.json_encoder = JSONEncoder
@@ -23,6 +24,7 @@ app.register_blueprint(bp_system)
 app.register_blueprint(bp_history)
 app.register_blueprint(bp_error)
 app.register_blueprint(bp_data)
+app.register_blueprint(bp_predict)
 
 
 @app.route('/')

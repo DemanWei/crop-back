@@ -29,6 +29,14 @@ def price():
     return jsonify(status=1, message='获取成功', data=None if with_echarts else data)
 
 
+def get_price(city, crop):
+    """获取某city某crop价格数据"""
+    # 查询数据库
+    data = Data.query.filter(Data.city == city, Data.crop == crop).all()
+    # 返回数据
+    return data
+
+
 @bp_data.route('/cityWithCrop', methods=['POST'])
 def city_with_crop():
     """根据city获取所有crop"""

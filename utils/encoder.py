@@ -1,6 +1,7 @@
 import datetime
 import decimal
 import uuid
+import pandas as pd
 
 from flask.json import JSONEncoder as _JSONEncoder
 
@@ -13,6 +14,8 @@ class JSONEncoder(_JSONEncoder):
             return o.strftime('%Y-%m-%d %H:%M:%S')
         elif isinstance(o, datetime.date):
             return o.strftime('%Y-%m-%d')
+        elif isinstance(o, pd.Timestamp):
+            return o.strftime('%Y-%m-%d %H:%M:%S')
         elif isinstance(o, decimal.Decimal):
             return str(o)
         elif isinstance(o, uuid.UUID):
