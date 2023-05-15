@@ -1,27 +1,38 @@
 from flask import Blueprint, request, jsonify
 
+
 from utils.db_model import Data
+from utils.echart_utils import render_echarts
 
 bp_data = Blueprint('data', __name__, url_prefix='/data')
 
 
-@bp_data.route('/price')
+@bp_data.route('/price', methods=['POST'])
 def price():
     """获取某city某crop价格数据"""
-    city = request.args.get('city')
-    crop = request.args.get('crop')
+    city = request.json.get('city')
+    crop = request.json.get('crop')
+    freq = request.json.get('freq')
     # 参数合法性校验
     if city is None or crop is None:
         return jsonify(status=0, message='请求字段缺失', data=None)
+
+    # 查询数据库
+    data = Data.query.filter(Data.city == city, Data.crop == crop).all()
+
+    # 渲染图像
+    with_echarts = freq is not None
+    if with_echarts:
+        render_echarts(data, request.json, save_path='./static/echarts/original_data.html')
+
     # 返回数据
-    price_list = Data.query.filter(Data.city == city, Data.crop == crop).all()
-    return jsonify(status=1, message='获取成功', data=price_list)
+    return jsonify(status=1, message='获取成功', data=None if with_echarts else data)
 
 
-@bp_data.route('/cityWithCrop')
+@bp_data.route('/cityWithCrop', methods=['POST'])
 def city_with_crop():
     """根据city获取所有crop"""
-    city = request.args.get('city')
+    city = request.json.get('city')
     # 参数合法性校验
     if city is None:
         return jsonify(status=0, message='请求字段缺失', data=None)
@@ -32,3 +43,4 @@ def city_with_crop():
     distinct_crops = [row[0] for row in crop_list]
     data = {'city_list': distinct_citys, 'crop_list': distinct_crops}
     return jsonify(status=1, message='获取成功', data=data)
+

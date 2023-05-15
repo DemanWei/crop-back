@@ -9,7 +9,7 @@ bp_user = Blueprint('user', __name__, url_prefix='/user')
 
 
 @bp_user.route('/get', methods=['GET'])
-def user():
+def get_user():
     """根据username查询"""
     username = request.args.get('username')
     # 字段合法性校验
