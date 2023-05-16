@@ -8,7 +8,8 @@ import pandas as pd
 from scipy.stats import linregress
 from sklearn.metrics import mean_squared_error
 
-from blueprint.data import get_price
+from model.Arima import dict_to_str
+from utils.DataUtils import load_data_sql
 from utils.echart_utils import render_predict
 
 warnings.filterwarnings('ignore')
@@ -20,13 +21,8 @@ class Lr:
         self.settings = settings
 
     def load_data(self):
-        # data = load_data_sql(self.params, self.settings['miss_type'])
-        # 加载city_crop的价格数据和图像
-        data = get_price(self.params['city'], self.params['crop'])
-        date_list = [x['date'] for x in data]
-        price_list = [x['price'] for x in data]
-        data = pd.DataFrame(price_list, index=date_list, columns=['price'])
-        return data
+        return load_data_sql(self.params['city'], self.params['crop'], self.params['freq'],
+                             self.settings['miss_type'])
 
     def split_data(self, data, rate=0.9):
         """切分数据集"""
@@ -103,7 +99,7 @@ class Lr:
             fp.write('{}#{}'.format(slope, intercept))
 
 
-def LR_main(params, conf, settings, model_path):
+def LR_main(params, conf, settings, model_upload_name):
     """原数据"""
     lr = Lr(params, settings)
     # 加载数据
@@ -111,9 +107,10 @@ def LR_main(params, conf, settings, model_path):
     # 切分数据集
     train, test = lr.split_data(data, settings['train_rate'])
 
-    if model_path:
+    if model_upload_name is not None:
         # 加载模型
-        slope, intercept = lr.load_model(model_path)
+        model_upload_path = './static/model_upload/{}'.format(model_upload_name)
+        slope, intercept = lr.load_model(model_upload_path)
     else:
         # 训练
         slope, intercept = lr.fit(train)
@@ -128,22 +125,10 @@ def LR_main(params, conf, settings, model_path):
     lr.plot_res(data, train_predict, test_predict, future, train_RMSE, test_RMSE)
 
     # 返回
-    datas = {'original': dict_to_str(data.to_dict()),
-             'train_predict': dict_to_str(train_predict.to_dict()),
-             'test_predict': dict_to_str(test_predict.to_dict()),
-             'future': dict_to_str(future.to_dict())}
-    fit = {'slope': slope, 'intercept': intercept}
+    datas = {
+        'original': dict_to_str(data.to_dict()),
+        'train_predict': dict_to_str(train_predict.to_dict()),
+        'test_predict': dict_to_str(test_predict.to_dict()),
+        'future': dict_to_str(future.to_dict())
+    }
     return datas, round(train_RMSE, 2), round(test_RMSE, 2)
-
-
-def dict_to_str(data_dict):
-    ret = {}
-    for k, v in data_dict.items():
-        if isinstance(v, dict):
-            v = dict_to_str(v)
-        elif isinstance(v, pd.DataFrame):
-            v = v.to_dict()
-        elif isinstance(v, pd.Timestamp):
-            v = v.strftime('%Y-%m-%d')
-        ret[str(k)] = v
-    return ret

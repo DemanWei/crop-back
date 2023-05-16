@@ -1,0 +1,5 @@
+IP = '127.0.0.1'
+PORT = '3306'
+USERNAME = 'root'
+PASSWORD = '105610'
+DATABASE = 'crop'

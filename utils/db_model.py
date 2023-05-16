@@ -3,13 +3,14 @@ import datetime
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 
+from config.db import *
 from utils.hash_utils import encrypt
 
 app = Flask(__name__, static_folder='../static')
 ctx = app.app_context()
 ctx.push()
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:105610@127.0.0.1:3306/crop'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://{}:{}@{}:{}/{}'.format(USERNAME, PASSWORD, IP, PORT, DATABASE)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_MAX_OVERFLOW'] = 5
 app.config['SQLALCHEMY_POOL_SIZE'] = 20

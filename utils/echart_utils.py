@@ -8,14 +8,10 @@ from utils.DateUtils import datetime2str
 
 
 def render_echarts(data, params, save_path):
-    # 时间
-    date_list = [x['date'] for x in data]
-    # 价格
-    price_list = [x['price'] for x in data]
     line = (
         Line(init_opts=opts.InitOpts(theme=ThemeType.LIGHT, width='792px', height='464px'))
-            .add_xaxis(date_list)
-            .add_yaxis('Original', price_list, linestyle_opts=opts.LineStyleOpts(color='blue'),
+            .add_xaxis([datetime2str(x.to_pydatetime()) for x in list(data.index)])
+            .add_yaxis('Original', data.values.flatten(), linestyle_opts=opts.LineStyleOpts(color='blue'),
                        is_symbol_show=False)
             .set_global_opts(
             title_opts=opts.TitleOpts(

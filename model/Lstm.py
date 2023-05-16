@@ -5,12 +5,13 @@ import warnings
 
 import numpy as np
 import pandas as pd
-from tensorflow.python.keras.layers import Dense, LSTM
-from tensorflow.python.keras.models import Sequential, load_model
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import MinMaxScaler
+from tensorflow.python.keras.layers import Dense, LSTM
+from tensorflow.python.keras.models import Sequential, load_model
 
-from blueprint.data import get_price
+from model.Arima import dict_to_str
+from utils.DataUtils import load_data_sql
 from utils.DateUtils import get_date_range
 from utils.echart_utils import render_predict
 
@@ -27,13 +28,8 @@ class Lstm:
         self.settings = settings
 
     def load_data(self):
-        # data = load_data_sql(self.params, self.settings['miss_type'])
-        # 加载city_crop的价格数据和图像
-        data = get_price(self.params['city'], self.params['crop'])
-        date_list = [x['date'] for x in data]
-        price_list = [x['price'] for x in data]
-        data = pd.DataFrame(price_list, index=date_list, columns=['price'])
-        return data
+        return load_data_sql(self.params['city'], self.params['crop'], self.params['freq'],
+                             self.settings['miss_type'])
 
     def get_index(self, data):
         train_size = math.ceil(len(data) * self.settings['train_rate'])
@@ -143,7 +139,7 @@ class Lstm:
                        save_path='./static/predict/LSTM.html')
 
 
-def LSTM_main(params, conf, settings, model_path):
+def LSTM_main(params, conf, settings, model_upload_name):
     lstm = Lstm(params, conf, settings)
 
     # 加载数据
@@ -159,8 +155,9 @@ def LSTM_main(params, conf, settings, model_path):
     trainX, testX = lstm.reshape(trainX, testX)
 
     # 是否加载模型
-    if model_path:
-        model = load_model(model_path)
+    if model_upload_name is not None:
+        model_upload_path = './static/model_upload/{}'.format(model_upload_name)
+        model = load_model(model_upload_path)
     else:
         model = lstm.fit(trainX, trainY)
 
@@ -187,22 +184,10 @@ def LSTM_main(params, conf, settings, model_path):
 
     # 返回
     original = pd.Series(data_['price'], index=data_.index)  # DataFrame -> Series
-    datas = {'original': dict_to_str(data.to_dict()),
-             'train_predict': dict_to_str(train_predict.to_dict()),
-             'test_predict': dict_to_str(test_predict.to_dict()),
-             'future': dict_to_str(future.to_dict())}
+    datas = {
+        'original': dict_to_str(data.to_dict()),
+        'train_predict': dict_to_str(train_predict.to_dict()),
+        'test_predict': dict_to_str(test_predict.to_dict()),
+        'future': dict_to_str(future.to_dict())
+    }
     return datas, round(train_RMSE, 2), round(test_RMSE, 2)
-
-
-
-def dict_to_str(data_dict):
-    ret = {}
-    for k, v in data_dict.items():
-        if isinstance(v, dict):
-            v = dict_to_str(v)
-        elif isinstance(v, pd.DataFrame):
-            v = v.to_dict()
-        elif isinstance(v, pd.Timestamp):
-            v = v.strftime('%Y-%m-%d')
-        ret[str(k)] = v
-    return ret

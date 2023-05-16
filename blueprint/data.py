@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 
-
+from utils.DataUtils import load_data_sql
 from utils.db_model import Data
 from utils.echart_utils import render_echarts
 
@@ -13,13 +13,17 @@ def price():
     city = request.json.get('city')
     crop = request.json.get('crop')
     freq = request.json.get('freq')
+    miss_type = request.json.get('miss_type')
+    season_start = request.json.get('season_start')
+    season_end = request.json.get('season_end')
     # 参数合法性校验
     if city is None or crop is None:
         return jsonify(status=0, message='请求字段缺失', data=None)
 
     # 查询数据库
-    data = Data.query.filter(Data.city == city, Data.crop == crop).all()
-
+    # data = Data.query.filter(Data.city == city, Data.crop == crop).all()
+    # 使用pandas查询直接得到DataFrame
+    data = load_data_sql(city, crop, freq, miss_type, season_start, season_end)
     # 渲染图像
     with_echarts = freq is not None
     if with_echarts:

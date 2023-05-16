@@ -3,8 +3,9 @@
 # @File    : DataUtils.py
 # @Software : PyCharm
 import pandas as pd
+import pymysql
 
-from src.utils import DBUtils
+from config.db import *
 
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
@@ -31,21 +32,26 @@ def process_missing(data, type):
 
 
 """==================================================================================="""
-# def load_data_sql(params, miss_type):
-#     """从mysql加载数据"""
-#     sql = "select * from data where city='%s' and crop='%s'" % (params['city'], params['crop'])
-#     data = DBUtils.read_by_pd(sql)
-#     # 取date和price两列,同时设置date为索引
-#     data.set_index('date', inplace=True)
-#     data = data[['price']]
-#     # 处理缺失数据
-#     try:
-#         data = data.resample(params['freq']).mean()  # 重采样
-#     except Exception as e:
-#         pass
-#     process_missing(data, miss_type)
-#     # 季节轮换
-#     if params.get('season_start') and params.get('season_end'):
-#         data = get_duration_data(data, params['season_start'], params['season_end'])
-#     return data
 
+def load_data_sql(city, crop, freq='1D', miss_type='none', season_start=None, season_end=None):
+    """从mysql加载数据"""
+    sql = "select * from data where city='%s' and crop='%s'" % (city, crop)
+    conn = pymysql.connect(host=IP, port=int(PORT), user=USERNAME, password=PASSWORD, database=DATABASE)
+    data = pd.read_sql(sql, con=conn)
+    # 取date和price两列,同时设置date为索引
+    data.set_index('date', inplace=True)
+    data = data[['price']]
+    # 处理缺失数据
+    try:
+        data = data.resample(freq).mean()  # 重采样
+    except Exception as _:
+        pass
+    process_missing(data, miss_type)
+    # 季节轮换
+    if season_start is not None and season_end is not None:
+        data = get_duration_data(data, season_start, season_end)
+    return data
+
+if __name__ == '__main__':
+    datas = load_data_sql('Lahore', 'Apple (Ammre)')
+    print(datas)

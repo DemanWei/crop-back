@@ -5,6 +5,7 @@ from flask import Blueprint, request, jsonify, send_file
 from werkzeug.utils import secure_filename
 
 from utils.db_model import db
+from utils.file_utils import get_file_suffix
 
 bp_system = Blueprint('system', __name__, url_prefix='/system')
 
@@ -12,7 +13,7 @@ bp_system = Blueprint('system', __name__, url_prefix='/system')
 @bp_system.route('/upload', methods=['POST'])
 def upload():
     # 创建upload文件夹
-    upload_dir = './upload'
+    upload_dir = './static/model_upload/'
     if not os.path.exists(upload_dir):
         os.mkdir(upload_dir)
     # 获取请求参数
@@ -24,35 +25,23 @@ def upload():
 
     # 生成uuid4
     global_uuid4 = uuid.uuid4()
-    # 插入log_pointer表
-    from sqlalchemy.exc import IntegrityError
-    try:
-        # 文件保存到服务器,这里要放前边
-        # file_path = '{}/{}_{}{}'.format(upload_dir, user_id, global_uuid4,
-        #                                 get_file_suffix(secure_filename(file.filename)))
-        # file.save(file_path)
-        # # 插入表
-        # db.session.add(LogPointer(
-        #     user_id=user_id,
-        #     uuid4=global_uuid4,
-        #     file_path=file_path
-        # ))
-        db.session.commit()
-    except Exception as e:
-        print(repr(e))
-        # if 'Duplicate entry' in repr(e):
-        pass
-    finally:
-        # 响应
-        return jsonify(status=1, message='文件上传成功', data={'uuid4': global_uuid4})
+    # 文件保存到服务器,这里要放前边
+    file_path = '{}/{}_{}{}'.format(upload_dir, user_id, global_uuid4, get_file_suffix(secure_filename(file.filename)))
+    file.save(file_path)
+    # 响应
+    data = {'model_upload_name': os.path.basename(file_path)}
+    return jsonify(status=1, message='文件上传成功', data=data)
 
 
 @bp_system.route('/download', methods=['POST'])
 def download():
-    file_path = request.json['file_path']
-
+    file_path = request.json.get('file_path')
+    # todo 限制只能访问static
     if file_path is None:
         return jsonify(status=0, message='字段缺失', data=None)
+
+    # 虚拟目录 -> 相对文件目录
+    file_path = '.' + file_path
 
     # 文件存在性和合法性校验
     if not os.path.exists(file_path) or not os.path.isfile(file_path):

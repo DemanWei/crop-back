@@ -11,7 +11,7 @@ def predict():
     params = request.json.get('params')
     conf = request.json.get('conf')
     settings = request.json.get('settings')
-    model_path = request.json.get('model_path')
+    model_upload_name = request.json.get('model_upload_name')
 
     if model is None or params is None:
         return jsonify(status=0, message='字段缺失', data=None)
@@ -20,16 +20,16 @@ def predict():
     start_time = time.time()
     if model == 'ARIMA':
         from model.Arima import ARIMA_main
-        datas, train_RMSE, test_RMSE = ARIMA_main(params, conf, settings, model_path)
+        datas, train_RMSE, test_RMSE = ARIMA_main(params, conf, settings, model_upload_name)
     elif model == 'LR':
         from model.Lr import LR_main
-        datas, train_RMSE, test_RMSE = LR_main(params, conf, settings, model_path)
+        datas, train_RMSE, test_RMSE = LR_main(params, conf, settings, model_upload_name)
     elif model == 'LSTM':
         from model.Lstm import LSTM_main
-        datas, train_RMSE, test_RMSE = LSTM_main(params, conf, settings, model_path)
+        datas, train_RMSE, test_RMSE = LSTM_main(params, conf, settings, model_upload_name)
     elif model == 'RFR':
         from model.Rfr import Rfr_main
-        datas, train_RMSE, test_RMSE = Rfr_main(params, conf, settings, model_path)
+        datas, train_RMSE, test_RMSE = Rfr_main(params, conf, settings, model_upload_name)
     else:
         return jsonify(status=0, message='参数值有误', data=None)
     # 训练预测总耗时
