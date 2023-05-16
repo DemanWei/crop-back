@@ -5,8 +5,8 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 from flask import jsonify
 
-from utils.encoder import JSONEncoder
-from utils.db_model import app
+from src.component.encoder import JSONEncoder
+from src.domain.db_model import app
 
 from blueprint.user import bp_user
 from blueprint.history import bp_history

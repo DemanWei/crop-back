@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 
-from utils.db_model import History, db
-from utils.echart_utils import render_static
+from src.domain.db_model import History, db
+from src.utils.echart_utils import render_static
 
 bp_history = Blueprint('history', __name__, url_prefix='/history')
 

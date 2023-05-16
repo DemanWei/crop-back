@@ -19,16 +19,16 @@ def predict():
     # 调用模型预测
     start_time = time.time()
     if model == 'ARIMA':
-        from model.Arima import ARIMA_main
+        from src.model.Arima import ARIMA_main
         datas, train_RMSE, test_RMSE = ARIMA_main(params, conf, settings, model_upload_name)
     elif model == 'LR':
-        from model.Lr import LR_main
+        from src.model.Lr import LR_main
         datas, train_RMSE, test_RMSE = LR_main(params, conf, settings, model_upload_name)
     elif model == 'LSTM':
-        from model.Lstm import LSTM_main
+        from src.model.Lstm import LSTM_main
         datas, train_RMSE, test_RMSE = LSTM_main(params, conf, settings, model_upload_name)
     elif model == 'RFR':
-        from model.Rfr import Rfr_main
+        from src.model.Rfr import Rfr_main
         datas, train_RMSE, test_RMSE = Rfr_main(params, conf, settings, model_upload_name)
     else:
         return jsonify(status=0, message='参数值有误', data=None)

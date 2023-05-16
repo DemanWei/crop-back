@@ -2,8 +2,8 @@ import re
 
 from flask import Blueprint, request, jsonify
 
-from utils.db_model import User, db
-from utils.hash_utils import encrypt
+from src.domain.db_model import User, db
+from src.utils.hash_utils import encrypt
 
 bp_user = Blueprint('user', __name__, url_prefix='/user')
 

@@ -1,6 +1,6 @@
 # @Author  : LZC
 # @Time    : 2022/2/26 11:30
-# @File    : ExceptionUtils.py
+# @File    : arima_exception.py
 # @Software : PyCharm
 class ArimaDataTestFailedException(Exception):
     """ARIMA预测时,原数据检验不通过的异常"""

@@ -3,10 +3,10 @@ import datetime
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 
-from config.db import *
-from utils.hash_utils import encrypt
+from src.config.db import *
+from src.utils.hash_utils import encrypt
 
-app = Flask(__name__, static_folder='../static')
+app = Flask(__name__, static_folder='../../static')
 ctx = app.app_context()
 ctx.push()
 

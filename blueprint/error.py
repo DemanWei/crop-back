@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 
-from utils.db_model import Error, db
+from src.domain.db_model import Error, db
 
 bp_error = Blueprint('error', __name__, url_prefix='/error')
 

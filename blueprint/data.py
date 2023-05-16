@@ -1,8 +1,8 @@
 from flask import Blueprint, request, jsonify
 
-from utils.DataUtils import load_data_sql
-from utils.db_model import Data
-from utils.echart_utils import render_echarts
+from src.utils.data_utils import load_data_sql
+from src.domain.db_model import Data
+from src.utils.echart_utils import render_echarts
 
 bp_data = Blueprint('data', __name__, url_prefix='/data')
 

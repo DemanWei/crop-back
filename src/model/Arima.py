@@ -3,29 +3,23 @@ import math
 import warnings
 
 import pandas as pd
-from sklearn.metrics import mean_squared_error
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from statsmodels.stats.diagnostic import acorr_ljungbox
 from statsmodels.tsa.arima.model import ARIMAResults, ARIMA
 from statsmodels.tsa.stattools import adfuller as ADF
 
-from utils.DataUtils import load_data_sql
-from utils.DateUtils import get_date_range
-from utils.ExceptionUtils import ArimaDataTestFailedException
-from utils.echart_utils import render_predict
+from src.component.encoder import dict_to_str
+from src.exception.arima_exception import ArimaDataTestFailedException
+from src.model.base_model import BaseModel
+from src.utils.date_utils import get_date_range
 
 warnings.filterwarnings('ignore')
 
 
-class Arima():
+class Arima(BaseModel):
     def __init__(self, params, settings):
-        self.params = params
-        self.settings = settings
+        super().__init__('ARIMA', params, settings)
         self.log = ''
-
-    def load_data(self):
-        return load_data_sql(self.params['city'], self.params['crop'], self.params['freq'],
-                             self.settings['miss_type'])
 
     def split_data(self, data):
         train_size = math.ceil(len(data) * self.settings['train_rate'])
@@ -67,8 +61,8 @@ class Arima():
             l2 = '检验[未通过]!!!\n' + '-' * 45 + '\n'
         info = l0 + l1 + l2
         self.log += info
-        # TODO console log
-        # self.console_log(CONSOLE_PRE_PATH + 'ARIMA.txt', self.log)
+        # console log
+        self.console_log(self.log)
         # 控制台打印
         if print_info:
             print(info)
@@ -101,50 +95,21 @@ class Arima():
             fit.save('./static/model/ARIMA.pkl')
         return fit
 
-    def ARIMA_Predict(self, fit, data_test):
+    def predict(self, fit, data_test):
         """预测训练集和测试集"""
         train_predict = fit.predict()
         predict_ts = fit.forecast(len(data_test))
         test_predict = pd.Series(predict_ts.values, copy=True, index=data_test.index)
         return train_predict, test_predict
 
-    def ARIMA_Forecast(self, fit, start):
+    def forecast(self, fit, start):
         """预测未来"""
         predict_ts = fit.forecast(self.params['limit'])
         new_index = get_date_range(start, self.params['limit'])
         future = pd.Series(predict_ts.values, copy=True, index=new_index)  # 生成未来时间序列
         return future
 
-    def get_RMSE(self, train, train_predict, test, test_predict):
-        train_RMSE = math.sqrt(mean_squared_error(train, train_predict))
-        test_RMSE = math.sqrt(mean_squared_error(test, test_predict))
-        return train_RMSE, test_RMSE
 
-    # return 40.2, 200.1
-
-    def plot_res(self, original, train_predict, test_predict, future, train_RMSE, test_RMSE):
-        """数据可视化"""
-        render_predict('ARIMA', self.params, original, train_predict, test_predict, future, train_RMSE, test_RMSE,
-                       save_path='./static/predict/ARIMA.html')
-
-    def console_log(self, console_path, info):
-        with open(console_path, 'w', encoding='utf-8') as fp:
-            fp.write(info)
-
-
-
-
-def dict_to_str(data_dict):
-    ret = {}
-    for k, v in data_dict.items():
-        if isinstance(v, dict):
-            v = dict_to_str(v)
-        elif isinstance(v, pd.DataFrame):
-            v = v.to_dict()
-        elif isinstance(v, pd.Timestamp):
-            v = v.strftime('%Y-%m-%d')
-        ret[str(k)] = v
-    return ret
 
 
 def ARIMA_main(params, conf, settings, model_upload_name):
@@ -173,10 +138,10 @@ def ARIMA_main(params, conf, settings, model_upload_name):
             fit = arima.fit(train, (p, d, q))
 
         # 原数据预测
-        train_predict, test_predict = arima.ARIMA_Predict(fit, test)
+        train_predict, test_predict = arima.predict(fit, test)
         # 预测未来
         date_str = datetime.datetime.strftime(test.index[-1] + datetime.timedelta(1), '%Y-%m-%d')
-        future = arima.ARIMA_Forecast(fit, date_str)
+        future = arima.forecast(fit, date_str)
         # 获取误差
         train_RMSE, test_RMSE = arima.get_RMSE(train, train_predict, test, test_predict)
         # 绘制
@@ -189,7 +154,6 @@ def ARIMA_main(params, conf, settings, model_upload_name):
             'test_predict': dict_to_str(test_predict.to_dict()),
             'future': dict_to_str(future.to_dict())
         }
-        # return datas, round(train_RMSE, 2), round(test_RMSE, 2), fit
         return datas, round(train_RMSE, 2), round(test_RMSE, 2)
     else:
         raise ArimaDataTestFailedException(

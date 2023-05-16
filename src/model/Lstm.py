@@ -5,31 +5,24 @@ import warnings
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import MinMaxScaler
 from tensorflow.python.keras.layers import Dense, LSTM
 from tensorflow.python.keras.models import Sequential, load_model
 
-from model.Arima import dict_to_str
-from utils.DataUtils import load_data_sql
-from utils.DateUtils import get_date_range
-from utils.echart_utils import render_predict
+from src.component.encoder import dict_to_str
+from src.model.base_model import BaseModel
+from src.utils.date_utils import get_date_range
 
 warnings.filterwarnings('ignore')
 os.environ['CUDA_VISIBLE_DEVICES'] = '2'  # 防止显存不够(exit code -1073740791...)
 
 
-class Lstm:
+class Lstm(BaseModel):
     def __init__(self, params, conf, settings):
+        super().__init__('LSTM', params, settings)
         self.look_back = 1
         self.scaler = MinMaxScaler(feature_range=(0, 1))
-        self.params = params
         self.conf = conf
-        self.settings = settings
-
-    def load_data(self):
-        return load_data_sql(self.params['city'], self.params['crop'], self.params['freq'],
-                             self.settings['miss_type'])
 
     def get_index(self, data):
         train_size = math.ceil(len(data) * self.settings['train_rate'])
@@ -80,10 +73,11 @@ class Lstm:
         # model.add(Dense(1))
         # model.compile(loss='mean_squared_error', optimizer='adam')
         # model.fit(trainX, trainY, epochs=100, batch_size=1, verbose=2)
-        # TODO console 日志
-        # info = "<activation function>:'relu'\n<epochs>:{}\n\n<loss>:{}".format(history.epoch, history.history['loss'])
-        # with open(CONSOLE_PRE_PATH + 'LSTM.txt', 'w', encoding='utf-8') as fp:
-        #     fp.write(info)
+        # console 日志
+        info = "<activation function>:'relu'\n<epochs>:{}\n\n<loss>:{}".format(
+            history.epoch, history.history['loss']
+        )
+        self.console_log(info)
         if self.settings['model_auto_save']:
             # TODO save model
             model.save('./static/model/LSTM.h5')
@@ -127,17 +121,6 @@ class Lstm:
         future = self.scaler.inverse_transform(future)
         return trainY, train_predict, testY, test_predict, future
 
-    def get_RMSE(self, trainY, train_predict, testY, test_predict):
-        """评估"""
-        train_RMSE = math.sqrt(mean_squared_error(trainY[0], train_predict[:, 0]))
-        test_RMSE = math.sqrt(mean_squared_error(testY[0], test_predict[:, 0]))
-        return train_RMSE, test_RMSE
-
-    def do_plot(self, original, train_predict, test_predict, future, train_RMSE, test_RMSE):
-        """绘图"""
-        render_predict('LSTM', self.params, original, train_predict, test_predict, future, train_RMSE, test_RMSE,
-                       save_path='./static/predict/LSTM.html')
-
 
 def LSTM_main(params, conf, settings, model_upload_name):
     lstm = Lstm(params, conf, settings)
@@ -180,7 +163,7 @@ def LSTM_main(params, conf, settings, model_upload_name):
     future = pd.Series(future.flatten(), index=get_date_range(date_str, params['limit']))
 
     # 绘图
-    lstm.do_plot(data_, train_predict, test_predict, future, train_RMSE, test_RMSE)
+    lstm.plot_res(data_, train_predict, test_predict, future, train_RMSE, test_RMSE)
 
     # 返回
     original = pd.Series(data_['price'], index=data_.index)  # DataFrame -> Series

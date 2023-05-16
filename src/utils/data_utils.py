@@ -1,11 +1,11 @@
 # @Author  : LZC
 # @Time    : 2021/8/11 10:30
-# @File    : DataUtils.py
+# @File    : data_utils.py
 # @Software : PyCharm
 import pandas as pd
 import pymysql
 
-from config.db import *
+from src.config.db import *
 
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)

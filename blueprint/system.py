@@ -4,8 +4,7 @@ import uuid
 from flask import Blueprint, request, jsonify, send_file
 from werkzeug.utils import secure_filename
 
-from utils.db_model import db
-from utils.file_utils import get_file_suffix
+from src.utils.file_utils import get_file_suffix
 
 bp_system = Blueprint('system', __name__, url_prefix='/system')
 

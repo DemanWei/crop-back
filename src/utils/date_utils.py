@@ -1,6 +1,6 @@
 # @Author  : LZC
 # @Time    : 2021/10/18 14:04
-# @File    : DateUtils.py
+# @File    : date_utils.py
 # @Software : PyCharm
 import datetime
 
@@ -14,10 +14,6 @@ def get_date_range(start, limit, level='day', format='YYYY-MM-DD'):
     res = (list(map(lambda dt: dt.format(format), arrow.Arrow.range(level, start, limit=limit))))
     date_parse2 = lambda dates: pd.datetime.strptime(dates, '%Y-%m-%d')
     return map(date_parse2, res)
-
-
-def str2datetime():
-    pass
 
 
 def datetime2str(time, format='%Y-%m-%d'):

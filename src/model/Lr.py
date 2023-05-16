@@ -6,27 +6,20 @@ import arrow
 import numpy as np
 import pandas as pd
 from scipy.stats import linregress
-from sklearn.metrics import mean_squared_error
 
-from model.Arima import dict_to_str
-from utils.DataUtils import load_data_sql
-from utils.echart_utils import render_predict
+from src.component.encoder import dict_to_str
+from src.model.base_model import BaseModel
 
 warnings.filterwarnings('ignore')
 
 
-class Lr:
+class Lr(BaseModel):
     def __init__(self, params, settings):
-        self.params = params
-        self.settings = settings
+        super().__init__('LR', params, settings)
 
-    def load_data(self):
-        return load_data_sql(self.params['city'], self.params['crop'], self.params['freq'],
-                             self.settings['miss_type'])
-
-    def split_data(self, data, rate=0.9):
+    def split_data(self, data):
         """切分数据集"""
-        train_size = math.ceil(len(data) * rate)
+        train_size = math.ceil(len(data) * self.settings['train_rate'])
         train = data[:train_size]
         test = data[train_size:]
         return train, test
@@ -40,16 +33,10 @@ class Lr:
 
     def fit(self, data, print_info=False):
         """训练"""
-        print(data)
-        print('=' * 30)
-        print(type(data))
         slope, intercept, r, p, std_err = linregress(range(len(data)), data['price'])
-        # TODO console日志
-        # info = '回归公式: y = {}*X + {}\n'.format(slope, intercept)
-        # with open(CONSOLE_PRE_PATH + 'LR.txt', 'w', encoding='utf-8') as fp:
-        #     fp.write(info)
-        # if print_info:
-        #     print(info)
+        # console日志
+        info = '回归公式: y = {}*X + {}\n'.format(slope, intercept)
+        self.console_log(info)
         # 保存模型
         if self.settings['model_auto_save']:
             # todo save model
@@ -73,18 +60,8 @@ class Lr:
         future = pd.Series(future_value, future_index)
         return future
 
-    def get_RMSE(self, train, train_predict, test, test_predict):
-        """评估"""
-        train_RMSE = math.sqrt(mean_squared_error(train, train_predict))
-        test_RMSE = math.sqrt(mean_squared_error(test, test_predict))
-        return train_RMSE, test_RMSE
-
-    def plot_res(self, original, train_predict, test_predict, future, train_RMSE, test_RMSE):
-        """绘图"""
-        render_predict('LR', self.params, original, train_predict, test_predict, future, train_RMSE, test_RMSE,
-                       save_path='./static/predict/LR.html')
-
-    def load_model(self, path):
+    @staticmethod
+    def load_model(path):
         """加载模型"""
         with open(path, 'r', encoding='utf-8') as fp:
             meta = fp.read().split('#')
@@ -105,12 +82,12 @@ def LR_main(params, conf, settings, model_upload_name):
     # 加载数据
     data = lr.load_data()
     # 切分数据集
-    train, test = lr.split_data(data, settings['train_rate'])
+    train, test = lr.split_data(data)
 
     if model_upload_name is not None:
         # 加载模型
         model_upload_path = './static/model_upload/{}'.format(model_upload_name)
-        slope, intercept = lr.load_model(model_upload_path)
+        slope, intercept = Lr.load_model(model_upload_path)
     else:
         # 训练
         slope, intercept = lr.fit(train)
