@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 
 from utils.db_model import History, db
+from utils.echart_utils import render_static
 
 bp_history = Blueprint('history', __name__, url_prefix='/history')
 
@@ -34,9 +35,8 @@ def statistics():
     history_list = History.query.filter(History.user_id == user_id).order_by(History.create_time.desc()).all()
     # 统计	{ARIMA,LR,RFR,LSTM}
     statistic = {'count': [0, 0, 0, 0], 'complex': [40, 20, 60, 80]}
-    print(history_list)
     for item in history_list:
-        model = item[4]
+        model = item['model']
         if model == 'ARIMA':
             statistic['count'][0] += 1
         elif model == 'LR':
@@ -45,6 +45,8 @@ def statistics():
             statistic['count'][2] += 1
         elif model == 'LSTM':
             statistic['count'][3] += 1
+    # 渲染柱状图
+    render_static(statistic, save_path='./static/history/history.html')
     return jsonify(status=1, message='获取成功', data=statistic)
 
 
@@ -64,7 +66,7 @@ def delete():
 @bp_history.route('/delete/all', methods=['POST'])
 def deleteAll():
     """删除account的全部history"""
-    user_id = request.args.get('user_id')
+    user_id = request.json.get('user_id')
     if user_id is None:
         return jsonify(status=0, message='请求字段缺失', data=None)
     History.query.filter(History.user_id == user_id).delete(synchronize_session=False)
@@ -75,16 +77,16 @@ def deleteAll():
 @bp_history.route('/add', methods=['POST'])
 def add():
     """添加一条history"""
-    user_id = request.args.get('user_id')
-    city = request.args.get('city')
-    crop = request.args.get('crop')
-    model = request.args.get('model')
-    freq = request.args.get('freq')
-    consume_time = request.args.get('consume_time')
-    complex = request.args.get('complex')
-    data_length = request.args.get('data_length')
-    train_rate = request.args.get('train_rate')
-    rmse = request.args.get('rmse')
+    user_id = request.json.get('user_id')
+    city = request.json.get('city')
+    crop = request.json.get('crop')
+    model = request.json.get('model')
+    freq = request.json.get('freq')
+    consume_time = request.json.get('consume_time')
+    complex = request.json.get('complex')
+    data_length = request.json.get('data_length')
+    train_rate = request.json.get('train_rate')
+    rmse = request.json.get('rmse')
     if user_id is None:
         return jsonify(status=0, message='请求字段缺失', data=None)
 

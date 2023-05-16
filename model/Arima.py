@@ -1,23 +1,18 @@
+import datetime
 import math
 import warnings
-import datetime
-import requests
-import numpy as np
+
 import pandas as pd
-from pyecharts import options as opts
-from pyecharts.charts import Line
-from pyecharts.globals import ThemeType
 from sklearn.metrics import mean_squared_error
-from statsmodels.tsa.arima.model import ARIMAResults, ARIMA
-from statsmodels.stats.diagnostic import acorr_ljungbox
-from statsmodels.tsa.stattools import adfuller as ADF
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from statsmodels.stats.diagnostic import acorr_ljungbox
+from statsmodels.tsa.arima.model import ARIMAResults, ARIMA
+from statsmodels.tsa.stattools import adfuller as ADF
 
 from blueprint.data import get_price
-from utils.DateUtils import get_date_range, datetime2str
+from utils.DateUtils import get_date_range
 from utils.ExceptionUtils import ArimaDataTestFailedException
-
-
+from utils.echart_utils import render_predict
 
 warnings.filterwarnings('ignore')
 
@@ -33,7 +28,7 @@ class Arima():
         data = get_price(self.params['city'], self.params['crop'])
         date_list = [x['date'] for x in data]
         price_list = [x['price'] for x in data]
-        data = pd.DataFrame(price_list, index=date_list)
+        data = pd.DataFrame(price_list, index=date_list, columns=['price'])
         return data
 
     def split_data(self, data):
@@ -133,37 +128,8 @@ class Arima():
 
     def plot_res(self, original, train_predict, test_predict, future, train_RMSE, test_RMSE):
         """数据可视化"""
-        pre = pd.Series([np.nan for x in range(len(train_predict))])
-        test_predict = pd.concat([pre, test_predict], axis=0)
-        pre = pd.Series([np.nan for x in range(len(original))])
-        future_ = pd.concat([pre, future], axis=0)
-
-        new_index = pd.concat([original, future], axis=0)
-        line = (
-            Line(init_opts=opts.InitOpts(theme=ThemeType.LIGHT, width='792px', height='464px'))
-                .add_xaxis([datetime2str(x) for x in new_index.index])
-                .add_yaxis('Original', [round(x, 2) for x in original.values.flatten()],
-                           linestyle_opts=opts.LineStyleOpts(color='blue'), is_symbol_show=False)
-                .add_yaxis('Train Prediction', [round(x, 2) for x in train_predict.to_list()],
-                           linestyle_opts=opts.LineStyleOpts(color='red'), is_symbol_show=False)
-                .add_yaxis('Test Prediction', [round(x, 2) for x in test_predict.tolist()],
-                           linestyle_opts=opts.LineStyleOpts(color='orange'), is_symbol_show=False)
-                .add_yaxis('Future', [round(x, 2) for x in future_.to_list()],
-                           linestyle_opts=opts.LineStyleOpts(color='green'), is_symbol_show=False)
-                .set_global_opts(
-                title_opts=opts.TitleOpts(
-                    title='模型:ARIMA  城市:{}  作物:{}  Train RMSE:{:.2f}  Test RMSE:{:.2f}'.format(self.params['city'],
-                                                                                               self.params['crop'],
-                                                                                               train_RMSE, test_RMSE),
-                    subtitle="折线图"),
-                tooltip_opts=opts.TooltipOpts(trigger='axis', axis_pointer_type='cross'),
-                toolbox_opts=opts.ToolboxOpts(is_show=True, orient='vertical', pos_left='right'),
-                legend_opts=opts.LegendOpts(pos_top=30)
-            )
-                .set_colors(['blue', 'red', 'orange', 'green'])
-        )
-        # TODO save image
-        line.render('./static/echarts/ARIMA.html')
+        render_predict('ARIMA', self.params, original, train_predict, test_predict, future, train_RMSE, test_RMSE,
+                       save_path='./static/predict/ARIMA.html')
 
     def console_log(self, console_path, info):
         with open(console_path, 'w', encoding='utf-8') as fp:
@@ -218,6 +184,7 @@ def ARIMA_main(params, conf, settings, model_path):
         raise ArimaDataTestFailedException(
             'The stationarity or white noise test failed, please differentiate again or change the sampling frequency!'
         )
+
 
 def dict_to_str(data_dict):
     ret = {}

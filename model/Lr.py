@@ -1,17 +1,15 @@
-import math
-import arrow
-import warnings
 import datetime
+import math
+import warnings
+
+import arrow
 import numpy as np
 import pandas as pd
 from scipy.stats import linregress
 from sklearn.metrics import mean_squared_error
-from pyecharts import options as opts
-from pyecharts.charts import Line
-from pyecharts.globals import ThemeType
-from src.utils.DataUtils import load_data_sql
-from src.utils.DateUtils import datetime2str
-from src.config.Config import *
+
+from blueprint.data import get_price
+from utils.echart_utils import render_predict
 
 warnings.filterwarnings('ignore')
 
@@ -22,7 +20,12 @@ class Lr:
         self.settings = settings
 
     def load_data(self):
-        data = load_data_sql(self.params, self.settings['miss_type'])
+        # data = load_data_sql(self.params, self.settings['miss_type'])
+        # 加载city_crop的价格数据和图像
+        data = get_price(self.params['city'], self.params['crop'])
+        date_list = [x['date'] for x in data]
+        price_list = [x['price'] for x in data]
+        data = pd.DataFrame(price_list, index=date_list, columns=['price'])
         return data
 
     def split_data(self, data, rate=0.9):
@@ -41,16 +44,20 @@ class Lr:
 
     def fit(self, data, print_info=False):
         """训练"""
+        print(data)
+        print('=' * 30)
+        print(type(data))
         slope, intercept, r, p, std_err = linregress(range(len(data)), data['price'])
-        # 日志
-        info = '回归公式: y = {}*X + {}\n'.format(slope, intercept)
-        with open(CONSOLE_PRE_PATH + 'LR.txt', 'w', encoding='utf-8') as fp:
-            fp.write(info)
-        if print_info:
-            print(info)
+        # TODO console日志
+        # info = '回归公式: y = {}*X + {}\n'.format(slope, intercept)
+        # with open(CONSOLE_PRE_PATH + 'LR.txt', 'w', encoding='utf-8') as fp:
+        #     fp.write(info)
+        # if print_info:
+        #     print(info)
         # 保存模型
         if self.settings['model_auto_save']:
-            Lr.save_model(MODELS_PATH + 'LR.txt', slope, intercept)
+            # todo save model
+            Lr.save_model('./static/model/LR.txt', slope, intercept)
         return slope, intercept
 
     def predict(self, train, test, slope, intercept):
@@ -78,35 +85,8 @@ class Lr:
 
     def plot_res(self, original, train_predict, test_predict, future, train_RMSE, test_RMSE):
         """绘图"""
-        pre = pd.Series([np.nan for x in range(len(train_predict))])
-        test_predict = pd.concat([pre, test_predict], axis=0)
-        pre = pd.Series([np.nan for x in range(len(original))])
-        future_ = pd.concat([pre, future], axis=0)
-        new_index = pd.concat([original, future], axis=0)
-        line = (
-            Line(init_opts=opts.InitOpts(theme=ThemeType.LIGHT, width='792px', height='464px'))
-                .add_xaxis([datetime2str(x) for x in new_index.index])
-                .add_yaxis('Original', [round(x, 2) for x in original['price']],
-                           linestyle_opts=opts.LineStyleOpts(color='blue'), is_symbol_show=False)
-                .add_yaxis('Train Prediction', [round(x, 2) for x in train_predict.to_list()],
-                           linestyle_opts=opts.LineStyleOpts(color='red'), is_symbol_show=False)
-                .add_yaxis('Test Prediction', [round(x, 2) for x in test_predict.to_list()],
-                           linestyle_opts=opts.LineStyleOpts(color='orange'), is_symbol_show=False)
-                .add_yaxis('Future', [round(x, 2) for x in future_.to_list()],
-                           linestyle_opts=opts.LineStyleOpts(color='green'), is_symbol_show=False)
-                .set_global_opts(
-                title_opts=opts.TitleOpts(
-                    title='模型:LR  城市:{}  作物:{}  Train RMSE:{:.2f}  Test RMSE:{:.2f}'.format(self.params['city'],
-                                                                                            self.params['crop'],
-                                                                                            train_RMSE, test_RMSE),
-                    subtitle="折线图"),
-                tooltip_opts=opts.TooltipOpts(trigger='axis', axis_pointer_type='cross'),
-                toolbox_opts=opts.ToolboxOpts(is_show=True, orient='vertical', pos_left='right'),
-                legend_opts=opts.LegendOpts(pos_top=30)
-            )
-                .set_colors(['blue', 'red', 'orange', 'green'])
-        )
-        line.render(IMG_PRE_PATH + 'LR.html')
+        render_predict('LR', self.params, original, train_predict, test_predict, future, train_RMSE, test_RMSE,
+                       save_path='./static/predict/LR.html')
 
     def load_model(self, path):
         """加载模型"""
@@ -148,6 +128,22 @@ def LR_main(params, conf, settings, model_path):
     lr.plot_res(data, train_predict, test_predict, future, train_RMSE, test_RMSE)
 
     # 返回
-    datas = {'original': data, 'train_predict': train_predict, 'test_predict': test_predict, 'future': future}
+    datas = {'original': dict_to_str(data.to_dict()),
+             'train_predict': dict_to_str(train_predict.to_dict()),
+             'test_predict': dict_to_str(test_predict.to_dict()),
+             'future': dict_to_str(future.to_dict())}
     fit = {'slope': slope, 'intercept': intercept}
-    return datas, round(train_RMSE, 2), round(test_RMSE, 2), fit
+    return datas, round(train_RMSE, 2), round(test_RMSE, 2)
+
+
+def dict_to_str(data_dict):
+    ret = {}
+    for k, v in data_dict.items():
+        if isinstance(v, dict):
+            v = dict_to_str(v)
+        elif isinstance(v, pd.DataFrame):
+            v = v.to_dict()
+        elif isinstance(v, pd.Timestamp):
+            v = v.strftime('%Y-%m-%d')
+        ret[str(k)] = v
+    return ret

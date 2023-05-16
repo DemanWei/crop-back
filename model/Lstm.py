@@ -1,20 +1,18 @@
-import os
-import math
 import datetime
+import math
+import os
+import warnings
+
 import numpy as np
 import pandas as pd
-from pyecharts import options as opts
-from pyecharts.charts import Line
-from pyecharts.globals import ThemeType
-from keras.models import Sequential, load_model
-from keras.layers import Dense, LSTM
-from sklearn.preprocessing import MinMaxScaler
+from tensorflow.python.keras.layers import Dense, LSTM
+from tensorflow.python.keras.models import Sequential, load_model
 from sklearn.metrics import mean_squared_error
-from src.utils.DataUtils import load_data_sql
-from src.utils.DateUtils import get_date_range, datetime2str
-from src.config.Config import *
+from sklearn.preprocessing import MinMaxScaler
 
-import warnings
+from blueprint.data import get_price
+from utils.DateUtils import get_date_range
+from utils.echart_utils import render_predict
 
 warnings.filterwarnings('ignore')
 os.environ['CUDA_VISIBLE_DEVICES'] = '2'  # 防止显存不够(exit code -1073740791...)
@@ -29,7 +27,12 @@ class Lstm:
         self.settings = settings
 
     def load_data(self):
-        data = load_data_sql(self.params, self.settings['miss_type'])
+        # data = load_data_sql(self.params, self.settings['miss_type'])
+        # 加载city_crop的价格数据和图像
+        data = get_price(self.params['city'], self.params['crop'])
+        date_list = [x['date'] for x in data]
+        price_list = [x['price'] for x in data]
+        data = pd.DataFrame(price_list, index=date_list, columns=['price'])
         return data
 
     def get_index(self, data):
@@ -81,12 +84,13 @@ class Lstm:
         # model.add(Dense(1))
         # model.compile(loss='mean_squared_error', optimizer='adam')
         # model.fit(trainX, trainY, epochs=100, batch_size=1, verbose=2)
-        # 日志
-        info = "<activation function>:'relu'\n<epochs>:{}\n\n<loss>:{}".format(history.epoch, history.history['loss'])
-        with open(CONSOLE_PRE_PATH + 'LSTM.txt', 'w', encoding='utf-8') as fp:
-            fp.write(info)
+        # TODO console 日志
+        # info = "<activation function>:'relu'\n<epochs>:{}\n\n<loss>:{}".format(history.epoch, history.history['loss'])
+        # with open(CONSOLE_PRE_PATH + 'LSTM.txt', 'w', encoding='utf-8') as fp:
+        #     fp.write(info)
         if self.settings['model_auto_save']:
-            model.save(MODELS_PATH + 'LSTM.h5')
+            # TODO save model
+            model.save('./static/model/LSTM.h5')
         return model
 
     def predict(self, model, trainX, testX):
@@ -135,35 +139,8 @@ class Lstm:
 
     def do_plot(self, original, train_predict, test_predict, future, train_RMSE, test_RMSE):
         """绘图"""
-        pre = pd.Series([np.nan for x in range(len(train_predict))])
-        test_predict = pd.concat([pre, test_predict], axis=0)
-        pre = pd.Series([np.nan for x in range(len(original))])
-        future_ = pd.concat([pre, future], axis=0)
-        new_index = pd.concat([original, future], axis=0)
-        line = (
-            Line(init_opts=opts.InitOpts(theme=ThemeType.LIGHT, width='792px', height='464px'))
-                .add_xaxis([datetime2str(x) for x in new_index.index])
-                .add_yaxis('Original', [round(x, 2) for x in list(original['price'])],
-                           linestyle_opts=opts.LineStyleOpts(color='blue'), is_symbol_show=False)
-                .add_yaxis('Train Prediction', [round(x, 2) for x in train_predict.to_list()],
-                           linestyle_opts=opts.LineStyleOpts(color='red'), is_symbol_show=False)
-                .add_yaxis('Test Prediction', [round(x, 2) for x in test_predict.to_list()],
-                           linestyle_opts=opts.LineStyleOpts(color='orange'), is_symbol_show=False)
-                .add_yaxis('Future', [round(x, 2) for x in future_.to_list()],
-                           linestyle_opts=opts.LineStyleOpts(color='green'), is_symbol_show=False)
-                .set_global_opts(
-                title_opts=opts.TitleOpts(
-                    title='模型:LSTM  城市:{}  作物:{}  Train RMSE:{:.2f}  Test RMSE:{:.2f}'.format(self.params['city'],
-                                                                                              self.params['crop'],
-                                                                                              train_RMSE, test_RMSE),
-                    subtitle="折线图"),
-                tooltip_opts=opts.TooltipOpts(trigger='axis', axis_pointer_type='cross'),
-                toolbox_opts=opts.ToolboxOpts(is_show=True, orient='vertical', pos_left='right'),
-                legend_opts=opts.LegendOpts(pos_top=30)
-            )
-                .set_colors(['blue', 'red', 'orange', 'green'])
-        )
-        line.render(IMG_PRE_PATH + 'LSTM.html')
+        render_predict('LSTM', self.params, original, train_predict, test_predict, future, train_RMSE, test_RMSE,
+                       save_path='./static/predict/LSTM.html')
 
 
 def LSTM_main(params, conf, settings, model_path):
@@ -210,5 +187,22 @@ def LSTM_main(params, conf, settings, model_path):
 
     # 返回
     original = pd.Series(data_['price'], index=data_.index)  # DataFrame -> Series
-    datas = {'original': original, 'train_predict': train_predict, 'test_predict': test_predict, 'future': future}
-    return datas, round(train_RMSE, 2), round(test_RMSE, 2), model
+    datas = {'original': dict_to_str(data.to_dict()),
+             'train_predict': dict_to_str(train_predict.to_dict()),
+             'test_predict': dict_to_str(test_predict.to_dict()),
+             'future': dict_to_str(future.to_dict())}
+    return datas, round(train_RMSE, 2), round(test_RMSE, 2)
+
+
+
+def dict_to_str(data_dict):
+    ret = {}
+    for k, v in data_dict.items():
+        if isinstance(v, dict):
+            v = dict_to_str(v)
+        elif isinstance(v, pd.DataFrame):
+            v = v.to_dict()
+        elif isinstance(v, pd.Timestamp):
+            v = v.strftime('%Y-%m-%d')
+        ret[str(k)] = v
+    return ret

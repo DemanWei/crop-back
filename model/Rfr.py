@@ -1,18 +1,15 @@
-import math
-import joblib
 import datetime
-import numpy as np
-import pandas as pd
-from pyecharts import options as opts
-from pyecharts.charts import Line
-from pyecharts.globals import ThemeType
-from sklearn.metrics import mean_squared_error
-from sklearn.ensemble import RandomForestRegressor
-from src.utils.DataUtils import load_data_sql
-from src.utils.DateUtils import get_date_range, datetime2str
-from src.config.Config import *
-
+import math
 import warnings
+
+import joblib
+import pandas as pd
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error
+
+from blueprint.data import get_price
+from utils.DateUtils import get_date_range
+from utils.echart_utils import render_predict
 
 warnings.filterwarnings('ignore')
 
@@ -25,7 +22,13 @@ class Rfr:
 
     def load_data(self):
         """加载数据集,返回DataFrame格式"""
-        return load_data_sql(self.params, self.settings['miss_type'])
+        # return load_data_sql(self.params, self.settings['miss_type'])
+        # 加载city_crop的价格数据和图像
+        data = get_price(self.params['city'], self.params['crop'])
+        date_list = [x['date'] for x in data]
+        price_list = [x['price'] for x in data]
+        data = pd.DataFrame(price_list, index=date_list, columns=['price'])
+        return data
 
     def split_data(self, data):
         train_size = math.ceil(len(data) * self.settings['train_rate'])
@@ -48,7 +51,8 @@ class Rfr:
                                    oob_score=True)
         rf.fit(X_train_norm, y_train)
         if self.settings['model_auto_save']:
-            joblib.dump(rf, MODELS_PATH + 'RFR.rf')
+            # todo save model
+            joblib.dump(rf, './static/model/RFR.rf')
         return rf
 
     def predict(self, model, X_train_norm, X_test_norm):
@@ -72,35 +76,8 @@ class Rfr:
         return train_RMSE, test_RMSE
 
     def do_plot(self, original, train_predict, test_predict, future, train_RMSE, test_RMSE):
-        pre = pd.Series([np.nan for x in range(len(train_predict))])
-        test_predict = pd.concat([pre, test_predict], axis=0)
-        pre = pd.Series([np.nan for x in range(len(original))])
-        future_ = pd.concat([pre, future], axis=0)
-        new_index = pd.concat([original, future], axis=0)
-        line = (
-            Line(init_opts=opts.InitOpts(theme=ThemeType.LIGHT, width='792px', height='464px'))
-                .add_xaxis([datetime2str(x) for x in new_index.index])
-                .add_yaxis('Original', [round(x, 2) for x in list(original['price'])],
-                           linestyle_opts=opts.LineStyleOpts(color='blue'), is_symbol_show=False)
-                .add_yaxis('Train Prediction', [round(x, 2) for x in list(train_predict.values)],
-                           linestyle_opts=opts.LineStyleOpts(color='red'), is_symbol_show=False)
-                .add_yaxis('Test Prediction', [round(x, 2) for x in list(test_predict.values)],
-                           linestyle_opts=opts.LineStyleOpts(color='orange'), is_symbol_show=False)
-                .add_yaxis('Future', [round(x, 2) for x in list(future_.values)],
-                           linestyle_opts=opts.LineStyleOpts(color='green'), is_symbol_show=False)
-                .set_global_opts(
-                title_opts=opts.TitleOpts(
-                    title='模型:RFR  城市:{}  作物:{}  Train RMSE:{:.2f}  Test RMSE:{:.2f}'.format(self.params['city'],
-                                                                                             self.params['crop'],
-                                                                                             train_RMSE, test_RMSE),
-                    subtitle="折线图"),
-                tooltip_opts=opts.TooltipOpts(trigger='axis', axis_pointer_type='cross'),
-                toolbox_opts=opts.ToolboxOpts(is_show=True, orient='vertical', pos_left='right'),
-                legend_opts=opts.LegendOpts(pos_top=30)
-            )
-                .set_colors(['blue', 'red', 'orange', 'green'])
-        )
-        line.render(IMG_PRE_PATH + 'RFR.html')
+        render_predict('RFR', self.params, original, train_predict, test_predict, future, train_RMSE, test_RMSE,
+                       save_path='./static/predict/RFR.html')
 
 
 def Rfr_main(params, conf, settings, model_path):
@@ -134,5 +111,22 @@ def Rfr_main(params, conf, settings, model_path):
 
     # 返回
     data = pd.Series(data['price'], index=data.index)  # DataFrame -> Series
-    datas = {'original': data, 'train_predict': train_predict, 'test_predict': test_predict, 'future': future}
-    return datas, round(train_RMSE, 2), round(test_RMSE, 2), model
+    datas = {'original': dict_to_str(data.to_dict()),
+             'train_predict': dict_to_str(train_predict.to_dict()),
+             'test_predict': dict_to_str(test_predict.to_dict()),
+             'future': dict_to_str(future.to_dict())}
+    return datas, round(train_RMSE, 2), round(test_RMSE, 2)
+
+
+
+def dict_to_str(data_dict):
+    ret = {}
+    for k, v in data_dict.items():
+        if isinstance(v, dict):
+            v = dict_to_str(v)
+        elif isinstance(v, pd.DataFrame):
+            v = v.to_dict()
+        elif isinstance(v, pd.Timestamp):
+            v = v.strftime('%Y-%m-%d')
+        ret[str(k)] = v
+    return ret
