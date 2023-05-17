@@ -23,9 +23,6 @@ def render_echarts(data, params, save_path):
         )
             .set_colors(['blue'])
     )
-    # 保存至本地
-    import os
-    print(os.getcwd())
     line.render(save_path)
 
 

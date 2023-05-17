@@ -41,9 +41,6 @@ class Arima(BaseModel):
             l2 = '检验[未通过]!!!\n' + '-' * 45 + '\n'
         info = l0 + l1 + l2
         self.log += info
-        # 控制台打印
-        if print_info:
-            print(info)
         return test_pass
 
     def check_whiteNoise(self, data, print_info=False):
@@ -63,9 +60,6 @@ class Arima(BaseModel):
         self.log += info
         # console log
         self.console_log(self.log)
-        # 控制台打印
-        if print_info:
-            print(info)
         return test_pass
 
     def diff_data(self, data, d=1, plot=True):

@@ -1,11 +1,25 @@
 from flask import Blueprint, request, jsonify
 
+from src.component.encoder import dict_to_str
 from src.utils.data_utils import load_data_sql
 from src.domain.db_model import Data
 from src.utils.echart_utils import render_echarts
 
 bp_data = Blueprint('data', __name__, url_prefix='/data')
 
+
+@bp_data.route('/table', methods=['POST'])
+def get_price():
+    """获取某city某crop价格数据"""
+    city = request.json.get('city')
+    crop = request.json.get('crop')
+    # 参数合法性校验
+    if city is None or crop is None:
+        return jsonify(status=0, message='请求字段缺失', data=None)
+    # 查询数据库
+    data = Data.query.filter(Data.city == city, Data.crop == crop).all()
+    # 返回数据
+    return jsonify(status=1, message='获取成功', data=data)
 
 @bp_data.route('/price', methods=['POST'])
 def price():
@@ -30,15 +44,11 @@ def price():
         render_echarts(data, request.json, save_path='./static/echarts/original_data.html')
 
     # 返回数据
-    return jsonify(status=1, message='获取成功', data=None if with_echarts else data)
+    data = None if with_echarts else dict_to_str(data.to_dict())
+    return jsonify(status=1, message='获取成功', data=data)
 
 
-def get_price(city, crop):
-    """获取某city某crop价格数据"""
-    # 查询数据库
-    data = Data.query.filter(Data.city == city, Data.crop == crop).all()
-    # 返回数据
-    return data
+
 
 
 @bp_data.route('/cityWithCrop', methods=['POST'])
