@@ -17,7 +17,9 @@ def get_price():
     if city is None or crop is None:
         return jsonify(status=0, message='请求字段缺失', data=None)
     # 查询数据库
-    data = Data.query.filter(Data.city == city, Data.crop == crop).all()
+    price_list = Data.query.filter(Data.city == city, Data.crop == crop).all()
+    data = {'price_list': price_list, 'title': Data.keys()}
+
     # 返回数据
     return jsonify(status=1, message='获取成功', data=data)
 
