@@ -88,7 +88,7 @@ class Error(db.Model):
 
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     user_id = db.Column(db.BigInteger, db.ForeignKey('user.id', ondelete='CASCADE', onupdate='CASCADE'), nullable=False)
-    code = db.Column(db.String(64), unique=True, nullable=False)
+    code = db.Column(db.String(64), nullable=False)
     message = db.Column(db.String(512))
     create_time = db.Column(db.DateTime, nullable=False, default=datetime.datetime.now)
     status = db.Column(db.Integer, nullable=False, default=1)
